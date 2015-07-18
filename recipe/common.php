@@ -19,6 +19,17 @@ set('writable_use_sudo', true); // Using sudo in writable commands?
  */
 env('branch', ''); // Branch to deploy.
 env('env_vars', ''); // For Composer installation. Like SYMFONY_ENV=prod
+env('composer_options', 'install --no-dev --verbose --prefer-dist --optimize-autoloader --no-progress --no-interaction');
+env('git_cache', function () { //whether to use git cache - faster cloning by borrowing objects from existing clones.
+  $gitVersion = run('git version');
+  $regs = [];
+  if (preg_match('/((\d+\.?)+)/', $gitVersion, $regs)) {
+      $version = $regs[1];
+  } else {
+      $version = "1.0.0";
+  }
+  return version_compare($version, '2.3', '>=');
+});
 
 /**
  * Default arguments and options.
@@ -92,7 +103,7 @@ env('release_path', function () {
  * Release
  */
 task('deploy:release', function () {
-    $release = date('YmdHis');
+    $release = run('date +%Y%m%d%H%M%S');
 
     $releasePath = "{{deploy_path}}/releases/$release";
 
@@ -115,6 +126,9 @@ task('deploy:release', function () {
 task('deploy:update_code', function () {
     $repository = get('repository');
     $branch = env('branch');
+    $gitCache = env('git_cache');
+    $depth = $gitCache ? '' : '--depth 1';
+    
     if (input()->hasOption('tag')) {
         $tag = input()->getOption('tag');
     }
@@ -122,11 +136,23 @@ task('deploy:update_code', function () {
     $at = '';
     if (!empty($tag)) {
         $at = "-b $tag";
-    } else if (!empty($branch)) {
+    } elseif (!empty($branch)) {
         $at = "-b $branch";
     }
 
-    run("git clone $at --depth 1 --recursive -q $repository {{release_path}} 2>&1");
+    $releases = env('releases_list');
+    
+    if ($gitCache && isset($releases[1])) {
+        try {
+            run("git clone $at --recursive -q --reference {{deploy_path}}/releases/{$releases[1]} --dissociate $repository  {{release_path}} 2>&1");
+        } catch (RuntimeException $exc) {
+            // If {{deploy_path}}/releases/{$releases[1]} has a failed git clone, is empty, shallow etc, git would throw error and give up. So we're forcing it to act without reference in this situation
+            run("git clone $at --recursive -q $repository {{release_path}} 2>&1");
+        }
+    } else {
+        // if we're using git cache this would be identical to above code in catch - full clone. If not, it would create shallow clone.
+        run("git clone $at $depth --recursive -q $repository {{release_path}} 2>&1");
+    }
 
 })->desc('Updating code');
 
@@ -154,7 +180,7 @@ task('deploy:shared', function () {
 
     foreach (get('shared_files') as $file) {
         // Remove from source
-        run("if [ -d $(echo {{release_path}}/$file) ]; then rm -rf {{release_path}}/$file; fi");
+        run("if [ -f $(echo {{release_path}}/$file) ]; then rm -rf {{release_path}}/$file; fi");
 
         // Create dir of shared file
         run("mkdir -p $sharedPath/" . dirname($file));
@@ -176,34 +202,27 @@ task('deploy:writable', function () {
     $sudo = get('writable_use_sudo') ? 'sudo' : '';
 
     if (!empty($dirs)) {
-
         try {
             $httpUser = run("ps aux | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1")->toString();
 
             cd('{{release_path}}');
 
             if (strpos(run("chmod 2>&1; true"), '+a') !== false) {
-
                 if (!empty($httpUser)) {
                     run("$sudo chmod +a \"$httpUser allow delete,write,append,file_inherit,directory_inherit\" $dirs");
                 }
 
                 run("$sudo chmod +a \"`whoami` allow delete,write,append,file_inherit,directory_inherit\" $dirs");
-
             } elseif (commandExist('setfacl')) {
-
                 if (!empty($httpUser)) {
                     run("$sudo setfacl -R -m u:\"$httpUser\":rwX -m u:`whoami`:rwX $dirs");
                     run("$sudo setfacl -dR -m u:\"$httpUser\":rwX -m u:`whoami`:rwX $dirs");
                 } else {
                     run("$sudo chmod 777 $dirs");
                 }
-
-
             } else {
                 run("$sudo chmod 777 $dirs");
             }
-
         } catch (\RuntimeException $e) {
             $formatter = \Deployer\Deployer::get()->getHelper('formatter');
 
@@ -232,7 +251,7 @@ task('deploy:vendors', function () {
         $composer = 'php composer.phar';
     }
 
-    run("cd {{release_path}} && {{env_vars}} $composer install --no-dev --verbose --prefer-dist --optimize-autoloader --no-progress --no-interaction");
+    run("cd {{release_path}} && {{env_vars}} $composer {{composer_options}}");
 
 })->desc('Installing vendors');
 

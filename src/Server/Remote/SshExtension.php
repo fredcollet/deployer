@@ -84,7 +84,10 @@ class SshExtension implements ServerInterface
                 
             case Configuration::AUTH_BY_AGENT:
 
-                throw new \RuntimeException('If you want to use forward agent function, switch to using PhpSecLib.');
+                $authentication = new \Ssh\Authentication\Agent(
+                    $serverConfig->getUser()
+                );
+                break;
 
             default:
                 throw new \RuntimeException('You need to specify authentication method.');
@@ -120,8 +123,6 @@ class SshExtension implements ServerInterface
     {
         $this->checkConnection();
 
-        $remote = str_replace('\\', '/', $remote);
-
         $dir = dirname($remote);
 
         if (!isset($this->directories[$dir])) {
@@ -141,7 +142,7 @@ class SshExtension implements ServerInterface
     {
         $this->checkConnection();
 
-        if(!$this->session->getSftp()->receive($remote, $local)) {
+        if (!$this->session->getSftp()->receive($remote, $local)) {
             throw new \RuntimeException('Can not download file.');
         }
     }

@@ -10,6 +10,11 @@ namespace Deployer\Task;
 class Task
 {
     /**
+     * @var string
+     */
+    private $name;
+
+    /**
      * Task code.
      * @var callable
      */
@@ -34,22 +39,24 @@ class Task
     private $onlyOn = [];
 
     /**
-     * Make task internal and not visible in CLI. 
+     * Make task internal and not visible in CLI.
      * @var bool
      */
     private $private = false;
 
     /**
+     * @param string $name Tasks name
      * @param \Closure $callback Task code.
      */
-    public function __construct(\Closure $callback)
+    public function __construct($name, \Closure $callback)
     {
+        $this->name = $name;
         $this->callback = $callback;
     }
 
     /**
      * Run task.
-     * 
+     *
      * @param Context $context
      */
     public function run(Context $context)
@@ -71,6 +78,14 @@ class Task
         }
 
         Context::pop();
+    }
+
+    /**
+     * @return string
+     */
+    public function getName()
+    {
+        return $this->name;
     }
 
     /**

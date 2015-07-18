@@ -23,9 +23,6 @@ set('writable_dirs', ['app/cache', 'app/logs']);
 // Assets
 set('assets', ['web/css', 'web/images', 'web/js']);
 
-// Auto migrate
-set('auto_migrate', false);
-
 // Environment vars
 env('env_vars', 'SYMFONY_ENV=prod');
 env('env', 'prod');
@@ -61,7 +58,7 @@ task('deploy:assets', function () {
         return "{{release_path}}/$asset";
     }, get('assets')));
 
-    $time = date('Ymdhi.s');
+    $time = run('date +%Y%m%d%H%M.%S');
 
     run("find $assets -exec touch -t $time {} ';' &> /dev/null || true");
 })->desc('Normalize asset timestamps');

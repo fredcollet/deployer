@@ -16,7 +16,6 @@ use RuntimeException;
 
 class PhpSecLib implements ServerInterface
 {
-
     /**
      * @var Configuration
      */
@@ -123,8 +122,6 @@ class PhpSecLib implements ServerInterface
     public function upload($local, $remote)
     {
         $this->checkConnection();
-
-        $remote = str_replace('\\', '/', $remote);
 
         $dir = dirname($remote);
 
