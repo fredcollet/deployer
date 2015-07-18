@@ -16,6 +16,7 @@ use RuntimeException;
 
 class PhpSecLib implements ServerInterface
 {
+
     /**
      * @var Configuration
      */
@@ -55,7 +56,7 @@ class PhpSecLib implements ServerInterface
 
                 break;
 
-            case Configuration::AUTH_BY_PUBLIC_KEY:
+            case Configuration::AUTH_BY_IDENTITY_FILE:
 
                 $key = new RSA();
                 $key->setPassword($serverConfig->getPassPhrase());
@@ -74,17 +75,17 @@ class PhpSecLib implements ServerInterface
                 break;
 
             case Configuration::AUTH_BY_AGENT:
-                
+
                 $key = new Agent();
                 $result = $this->sftp->login($serverConfig->getUser(), $key);
-                
+
                 break;
-            
+
             default:
                 throw new RuntimeException('You need to specify authentication method.');
         }
 
-        if ( ! $result) {
+        if (!$result) {
             throw new RuntimeException('Unable to login with the provided credentials.');
         }
     }
@@ -109,7 +110,8 @@ class PhpSecLib implements ServerInterface
         $result = $this->sftp->exec($command);
 
         if ($this->sftp->getExitStatus() !== 0) {
-            throw new \RuntimeException($this->sftp->getStdError());
+            $output = $this->sftp->getStdError() ?: $result;
+            throw new \RuntimeException($output);
         }
 
         return $result;
@@ -121,6 +123,8 @@ class PhpSecLib implements ServerInterface
     public function upload($local, $remote)
     {
         $this->checkConnection();
+
+        $remote = str_replace('\\', '/', $remote);
 
         $dir = dirname($remote);
 

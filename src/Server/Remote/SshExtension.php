@@ -67,7 +67,7 @@ class SshExtension implements ServerInterface
 
                 break;
 
-            case Configuration::AUTH_BY_PUBLIC_KEY:
+            case Configuration::AUTH_BY_IDENTITY_FILE:
 
                 $authentication = new Ssh\Authentication\PublicKeyFile(
                     $serverConfig->getUser(),
@@ -119,6 +119,8 @@ class SshExtension implements ServerInterface
     public function upload($local, $remote)
     {
         $this->checkConnection();
+
+        $remote = str_replace('\\', '/', $remote);
 
         $dir = dirname($remote);
 

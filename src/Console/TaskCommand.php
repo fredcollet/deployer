@@ -12,7 +12,6 @@ use Deployer\Executor\ExecutorInterface;
 use Deployer\Executor\ParallelExecutor;
 use Deployer\Executor\SeriesExecutor;
 use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface as Input;
 use Symfony\Component\Console\Input\InputOption as Option;
 use Symfony\Component\Console\Output\OutputInterface as Output;
@@ -67,9 +66,9 @@ class TaskCommand extends Command
 
         $stage = $input->hasArgument('stage') ? $input->getArgument('stage') : null;
 
-        if (!empty($stage)) {
+        $servers = [];
 
-            $servers = [];
+        if (!empty($stage)) {
             
             // Look for servers which has in env `stages` current stage name.
             foreach($this->deployer->environments as $name => $env) {
@@ -90,12 +89,16 @@ class TaskCommand extends Command
             }
             
         } else {
-            // Otherwise run on all servers. 
-            $servers = iterator_to_array($this->deployer->servers->getIterator());
+            // Otherwise run on all servers what does not specify stage.
+            foreach($this->deployer->environments as $name => $env) {
+                if (!$env->has('stages')) {
+                    $servers[$name] = $this->deployer->servers->get($name);
+                }
+            }
         }
 
         if (empty($servers)) {
-            throw new \RuntimeException('You need specify at least one server.');
+            throw new \RuntimeException('You need specify at least one server or stage.');
         }
 
         $environments = iterator_to_array($this->deployer->environments);

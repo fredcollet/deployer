@@ -86,6 +86,10 @@ abstract class RecipeTester extends \PHPUnit_Framework_TestCase
     protected function exec($command, $args = [], $options = [])
     {
         $this->tester->run(['command' => $command] + $args, $options);
+
+        // Clear realpath cache.
+        clearstatcache(self::$deployPath);
+
         return $this->tester->getDisplay();
     }
 
